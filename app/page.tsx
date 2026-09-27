@@ -11,6 +11,8 @@ type Suggestion = {
   rationale: string;
   proposedSourceType: string;
   impactQuestions: string[];
+  status?: "proposed" | "approved";
+  generatedDocument?: GeneratedDocument;
 };
 
 type KnowledgeGap = {
@@ -174,8 +176,14 @@ export default function Home() {
     }
   }
 
-  function settingsFor(key: string): GenerationSettings {
-    return generationSettings[key] || DEFAULT_GENERATION_SETTINGS;
+  function settingsFor(key: string, document?: GeneratedDocument): GenerationSettings {
+    if (generationSettings[key]) return generationSettings[key];
+
+    return {
+      creativity: document?.generation_creativity ?? DEFAULT_GENERATION_SETTINGS.creativity,
+      absurdity: document?.generation_absurdity ?? DEFAULT_GENERATION_SETTINGS.absurdity,
+      customPrompt: document?.generation_prompt ?? DEFAULT_GENERATION_SETTINGS.customPrompt
+    };
   }
 
   function updateGenerationSetting(
@@ -194,7 +202,7 @@ export default function Home() {
 
   async function approveSuggestion(suggestion: Suggestion) {
     const key = String(suggestion.id);
-    const settings = settingsFor(key);
+    const settings = settingsFor(key, suggestion.generatedDocument);
     setApprovingId(key);
     setError("");
 
@@ -230,7 +238,8 @@ export default function Home() {
 
   async function regenerateSuggestion(suggestion: Suggestion) {
     const key = String(suggestion.id);
-    const settings = settingsFor(key);
+    const existingDocument = generatedDocuments[key] || suggestion.generatedDocument;
+    const settings = settingsFor(key, existingDocument);
     setRegeneratingId(key);
     setError("");
 
@@ -395,9 +404,9 @@ export default function Home() {
               <div className="grid">
                 {result.knowledgeGap.suggestions.map((suggestion) => {
                   const key = String(suggestion.id);
-                  const wasAdded = added[key];
-                  const generated = generatedDocuments[key];
-                  const settings = settingsFor(key);
+                  const generated = generatedDocuments[key] || suggestion.generatedDocument;
+                  const wasAdded = added[key] || generated?.title;
+                  const settings = settingsFor(key, generated);
 
                   return (
                     <article className="suggestion" key={key}>
