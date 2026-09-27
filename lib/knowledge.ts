@@ -174,7 +174,7 @@ export async function generateApprovedKnowledge(suggestionId: string | number) {
 
   const seedText = [
     suggestion.domain,
-    sugggestion.title,
+    suggestion.title,
     suggestion.rationale,
     ...(suggestion.impact_questions ?? [])
   ].join("\n");
