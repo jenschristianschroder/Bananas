@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { embeddingModel, generationModel, openai } from "@/lib/openai";
 import { CONTROL_INSTRUCTIONS, SEALED_WORLD_INSTRUCTIONS } from "@/lib/prompts";
+import { analyzeKnowledgeGap } from "@/lib/knowledge";
 
 export const runtime = "nodejs";
 
@@ -98,6 +99,10 @@ export async function POST(req: Request) {
 
     const answer = response.output_text;
 
+    const knowledgeGap = selectedMode === "sealed"
+      ? await analyzeKnowledgeGap({ question, answer, sources })
+      : { needsExpansion: false, reason: "", suggestions: [] };
+
     try {
       const sql = db();
       const retrievedIds = `{${sources.map((s) => s.id).join(",")}}`;
@@ -124,7 +129,8 @@ export async function POST(req: Request) {
         source,
         title,
         similarity
-      }))
+      })),
+      knowledgeGap
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
