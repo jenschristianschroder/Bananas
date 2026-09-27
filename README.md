@@ -34,6 +34,8 @@ Add these environment variables to Development, Preview, and Production:
 
 Then deploy normally through Git integration or Vercel CLI.
 
+Current database target for the experiment: Neon branch `banana-world-lab` (kept separate from the default production branch).
+
 ## Experiment design
 
 Run identical questions in both modes. Useful probes:
