@@ -35,6 +35,31 @@ type PromptItem = {
 
 type ImageStyle = "scene" | "infographic" | "poster";
 
+type GeneratedDocument = {
+  id: number | string;
+  source: string;
+  title: string;
+  published_at: string;
+  domain: string;
+  content: string;
+  generation_creativity?: number | null;
+  generation_absurdity?: number | null;
+  generation_prompt?: string | null;
+  generation_version?: number | null;
+};
+
+type GenerationSettings = {
+  creativity: number;
+  absurdity: number;
+  customPrompt: string;
+};
+
+const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
+  creativity: 50,
+  absurdity: 25,
+  customPrompt: ""
+};
+
 type ImageResult = {
   imageDataUrl: string;
   imageModel: string;
@@ -70,7 +95,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [approvingId, setApprovingId] = useState<string>("");
+  const [regeneratingId, setRegeneratingId] = useState<string>("");
   const [added, setAdded] = useState<Record<string, string>>({});
+  const [generatedDocuments, setGeneratedDocuments] = useState<Record<string, GeneratedDocument>>({});
+  const [generationSettings, setGenerationSettings] = useState<Record<string, GenerationSettings>>({});
   const [imageStyle, setImageStyle] = useState<ImageStyle>("scene");
   const [imageRequest, setImageRequest] = useState("");
   const [imageLoading, setImageLoading] = useState(false);
@@ -146,8 +174,27 @@ export default function Home() {
     }
   }
 
+  function settingsFor(key: string): GenerationSettings {
+    return generationSettings[key] || DEFAULT_GENERATION_SETTINGS;
+  }
+
+  function updateGenerationSetting(
+    key: string,
+    field: keyof GenerationSettings,
+    value: string | number
+  ) {
+    setGenerationSettings((current) => ({
+      ...current,
+      [key]: {
+        ...(current[key] || DEFAULT_GENERATION_SETTINGS),
+        [field]: value
+      }
+    }));
+  }
+
   async function approveSuggestion(suggestion: Suggestion) {
     const key = String(suggestion.id);
+    const settings = settingsFor(key);
     setApprovingId(key);
     setError("");
 
@@ -155,7 +202,12 @@ export default function Home() {
       const res = await fetch("/api/knowledge/approve", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ suggestionId: suggestion.id })
+        body: JSON.stringify({
+          suggestionId: suggestion.id,
+          creativity: settings.creativity,
+          absurdity: settings.absurdity,
+          customPrompt: settings.customPrompt
+        })
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || "Knowledge generation failed");
@@ -164,11 +216,51 @@ export default function Home() {
         ...current,
         [key]: body.document.title
       }));
+      setGeneratedDocuments((current) => ({
+        ...current,
+        [key]: body.document
+      }));
       await refreshPrompts();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setApprovingId("");
+    }
+  }
+
+  async function regenerateSuggestion(suggestion: Suggestion) {
+    const key = String(suggestion.id);
+    const settings = settingsFor(key);
+    setRegeneratingId(key);
+    setError("");
+
+    try {
+      const res = await fetch("/api/knowledge/regenerate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          suggestionId: suggestion.id,
+          creativity: settings.creativity,
+          absurdity: settings.absurdity,
+          customPrompt: settings.customPrompt
+        })
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Knowledge regeneration failed");
+
+      setAdded((current) => ({
+        ...current,
+        [key]: body.document.title
+      }));
+      setGeneratedDocuments((current) => ({
+        ...current,
+        [key]: body.document
+      }));
+      await refreshPrompts();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setRegeneratingId("");
     }
   }
 
@@ -304,6 +396,8 @@ export default function Home() {
                 {result.knowledgeGap.suggestions.map((suggestion) => {
                   const key = String(suggestion.id);
                   const wasAdded = added[key];
+                  const generated = generatedDocuments[key];
+                  const settings = settingsFor(key);
 
                   return (
                     <article className="suggestion" key={key}>
@@ -323,15 +417,95 @@ export default function Home() {
                         </div>
                       )}
 
+                      <div className="generation-controls">
+                        <div className="generation-control">
+                          <div className="control-heading">
+                            <label htmlFor={`creativity-${key}`}>Creativity</label>
+                            <strong>{settings.creativity}</strong>
+                          </div>
+                          <input
+                            id={`creativity-${key}`}
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={settings.creativity}
+                            onChange={(e) => updateGenerationSetting(key, "creativity", Number(e.target.value))}
+                          />
+                          <div className="scale-labels small muted">
+                            <span>Conservative</span>
+                            <span>Inventive</span>
+                          </div>
+                        </div>
+
+                        <div className="generation-control">
+                          <div className="control-heading">
+                            <label htmlFor={`absurdity-${key}`}>Absurdity</label>
+                            <strong>{settings.absurdity}</strong>
+                          </div>
+                          <input
+                            id={`absurdity-${key}`}
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="5"
+                            value={settings.absurdity}
+                            onChange={(e) => updateGenerationSetting(key, "absurdity", Number(e.target.value))}
+                          />
+                          <div className="scale-labels small muted">
+                            <span>Sober</span>
+                            <span>Surreal</span>
+                          </div>
+                        </div>
+
+                        <label className="generation-prompt-label">
+                          <span>Generation prompt <span className="muted">(optional)</span></span>
+                          <textarea
+                            className="generation-prompt"
+                            placeholder="E.g. Focus on household consequences, make it read like a serious central-bank circular, include two surprising second-order effects…"
+                            value={settings.customPrompt}
+                            onChange={(e) => updateGenerationSetting(key, "customPrompt", e.target.value)}
+                          />
+                        </label>
+                      </div>
+
                       {wasAdded ? (
-                        <div className="added">Added to archive: {wasAdded}</div>
+                        <div className="generated-document">
+                          <div className="added">
+                            <strong>Added to archive:</strong> {wasAdded}
+                            {generated?.generation_version && (
+                              <span className="badge version-badge">v{generated.generation_version}</span>
+                            )}
+                          </div>
+
+                          {generated && (
+                            <details className="generated-preview">
+                              <summary>Preview generated content</summary>
+                              <p className="small muted">
+                                {generated.source} · {generated.published_at} · {generated.domain}
+                              </p>
+                              <div className="answer small">{generated.content}</div>
+                            </details>
+                          )}
+
+                          <button
+                            className="secondary"
+                            onClick={() => regenerateSuggestion(suggestion)}
+                            disabled={regeneratingId === key}
+                          >
+                            {regeneratingId === key ? "Regenerating…" : "Regenerate content"}
+                          </button>
+                          <p className="small muted">
+                            Regeneration replaces the active archive version with these settings. The previous version is preserved in revision history.
+                          </p>
+                        </div>
                       ) : (
                         <button
                           className="primary"
                           onClick={() => approveSuggestion(suggestion)}
                           disabled={approvingId === key}
                         >
-                          {approvingId === key ? "Generating…" : "Approve & add"}
+                          {approvingId === key ? "Generating…" : "Approve & add with these settings"}
                         </button>
                       )}
                     </article>
