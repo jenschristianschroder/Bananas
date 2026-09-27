@@ -54,3 +54,16 @@ code { background: #1d1d1d; padding: 2px 5px; border-radius: 5px; }
 .image-details { margin-top: 16px; border-top: 1px solid #2d2d2d; padding-top: 14px; }
 .image-details summary { cursor: pointer; font-weight: 700; }
 .source-badge { margin-left: 8px; vertical-align: middle; }
+
+.generation-controls { display: grid; gap: 14px; margin: 16px 0; padding: 14px; border: 1px solid #2b2b2b; border-radius: 12px; background: #111; }
+.generation-control { display: grid; gap: 6px; }
+.control-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.control-heading label { font-weight: 700; }
+.generation-control input[type="range"] { width: 100%; accent-color: currentColor; }
+.scale-labels { display: flex; justify-content: space-between; gap: 12px; }
+.generation-prompt-label { display: grid; gap: 7px; font-weight: 700; }
+.generation-prompt { min-height: 88px; font-weight: 400; }
+.generated-document { display: grid; gap: 12px; }
+.version-badge { margin-left: 8px; }
+.generated-preview { border: 1px solid #2d2d2d; border-radius: 10px; padding: 10px 12px; background: #0b0b0b; }
+.generated-preview summary { cursor: pointer; font-weight: 700; }
