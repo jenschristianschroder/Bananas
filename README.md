@@ -55,3 +55,6 @@ The archive is synthetic and the UI labels the project as a controlled experimen
 
 
 _Last deployment configuration refresh: 2026-09-27._
+
+
+_Last environment refresh: 2026-09-27 13:44 CEST._
