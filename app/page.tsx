@@ -33,6 +33,23 @@ type PromptItem = {
   sourceTitle?: string;
 };
 
+type ImageStyle = "scene" | "infographic" | "poster";
+
+type ImageResult = {
+  imageDataUrl: string;
+  imageModel: string;
+  visualBrief: string;
+  style: ImageStyle;
+  sources: Array<{
+    id: number | string;
+    source: string;
+    title: string;
+    publishedAt: string;
+    similarity: number | null;
+    provenance: string;
+  }>;
+};
+
 const FALLBACK_PROBES: PromptItem[] = [
   { question: "What currency does Denmark use?", kind: "base" },
   { question: "Why was the banana chosen as the new currency?", kind: "base" },
@@ -54,6 +71,10 @@ export default function Home() {
   const [error, setError] = useState("");
   const [approvingId, setApprovingId] = useState<string>("");
   const [added, setAdded] = useState<Record<string, string>>({});
+  const [imageStyle, setImageStyle] = useState<ImageStyle>("scene");
+  const [imageRequest, setImageRequest] = useState("");
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageResult, setImageResult] = useState<ImageResult | null>(null);
 
   async function refreshPrompts() {
     try {
@@ -75,6 +96,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setResult(null);
+    setImageResult(null);
 
     try {
       const res = await fetch("/api/chat", {
@@ -89,6 +111,38 @@ export default function Home() {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function generateImage(useAnswer = false) {
+    const requestText = imageRequest.trim() || (useAnswer && result
+      ? `Visualize this answer in the current world: ${result.answer}`
+      : question.trim());
+
+    if (!requestText) return;
+
+    setImageLoading(true);
+    setError("");
+    setImageResult(null);
+
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requestText,
+          question,
+          answerContext: useAnswer ? result?.answer : undefined,
+          style: imageStyle
+        })
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Image generation failed");
+      setImageResult(body);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unknown image-generation error");
+    } finally {
+      setImageLoading(false);
     }
   }
 
@@ -140,9 +194,16 @@ export default function Home() {
               : "Only the synthetic World Archive is supplied as post-cutoff evidence."}
           </p>
           <textarea value={question} onChange={(e) => setQuestion(e.target.value)} />
-          <div style={{ marginTop: 12 }}>
+          <div className="actions" style={{ marginTop: 12 }}>
             <button className="primary" onClick={ask} disabled={loading || !question.trim()}>
               {loading ? "Running…" : "Run test"}
+            </button>
+            <button
+              className="secondary"
+              onClick={() => generateImage(false)}
+              disabled={imageLoading || !question.trim()}
+            >
+              {imageLoading ? "Generating…" : "Visualize this world"}
             </button>
           </div>
           {error && <p className="error">{error}</p>}
@@ -151,7 +212,7 @@ export default function Home() {
         <section className="card">
           <h2>Probe set</h2>
           <p className="small muted">
-            Newly added knowledge appears first so you can immediately test whether it changed the model's world view.
+            Newly added knowledge appears first so you can immediately test whether it changed the model&apos;s world view.
           </p>
           <div className="grid">
             {prompts.map((prompt) => (
@@ -173,11 +234,52 @@ export default function Home() {
         </section>
       </div>
 
+      <section className="card image-controls" style={{ marginTop: 16 }}>
+        <div>
+          <span className="badge">World visualization</span>
+          <h2>Visualize the current Banana World</h2>
+          <p className="muted small">
+            The image prompt is rebuilt from the World Archive. Earlier answers are treated as intent, not as authoritative facts.
+          </p>
+        </div>
+
+        <textarea
+          className="image-request"
+          placeholder="Optional visual direction, e.g. Show an ordinary Copenhagen supermarket checkout in September 2026"
+          value={imageRequest}
+          onChange={(e) => setImageRequest(e.target.value)}
+        />
+
+        <div className="style-row">
+          {(["scene", "infographic", "poster"] as ImageStyle[]).map((style) => (
+            <button
+              className={`style-button ${imageStyle === style ? "active" : ""}`}
+              key={style}
+              onClick={() => setImageStyle(style)}
+            >
+              {style}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {result && (
         <section className="card" style={{ marginTop: 16 }}>
           <div className="badge">{result.mode} · {result.model}</div>
           <h2>Answer</h2>
           <div className="answer">{result.answer}</div>
+
+          {result.mode === "sealed" && (
+            <div className="actions answer-actions">
+              <button
+                className="primary"
+                onClick={() => generateImage(true)}
+                disabled={imageLoading}
+              >
+                {imageLoading ? "Generating image…" : "Generate image from this answer"}
+              </button>
+            </div>
+          )}
 
           {result.sources.length > 0 && (
             <>
@@ -246,6 +348,37 @@ export default function Home() {
               )}
             </div>
           )}
+        </section>
+      )}
+
+      {imageResult && (
+        <section className="card image-result" style={{ marginTop: 16 }}>
+          <div className="image-result-heading">
+            <div>
+              <span className="badge">{imageResult.style} · {imageResult.imageModel}</span>
+              <h2>World image</h2>
+            </div>
+          </div>
+
+          <img
+            className="world-image"
+            src={imageResult.imageDataUrl}
+            alt="Generated visualization grounded in the Banana World archive"
+          />
+
+          <details className="image-details">
+            <summary>How this image was grounded</summary>
+            <p className="answer small">{imageResult.visualBrief}</p>
+            <h3>Archive sources used</h3>
+            {imageResult.sources.map((source) => (
+              <div className="source small" key={source.id}>
+                <strong>{source.source}</strong> — {source.title}
+                {source.provenance === "generated" && <span className="badge source-badge">Latest generated knowledge</span>}
+                <br />
+                <span className="muted">{source.publishedAt}</span>
+              </div>
+            ))}
+          </details>
         </section>
       )}
     </main>
