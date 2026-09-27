@@ -10,3 +10,6 @@ export const embeddingModel =
   configuredEmbeddingModel === "text-embedding-3-small"
     ? configuredEmbeddingModel
     : "text-embedding-3-small";
+
+export const imageModel =
+  process.env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-2.5-flare";
