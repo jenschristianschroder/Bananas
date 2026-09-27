@@ -24,3 +24,15 @@ textarea { width: 100%; min-height: 108px; resize: vertical; border: 1px solid #
 .small { font-size: 13px; }
 .prompt { width: 100%; text-align: left; border: 1px solid #333; background: #141414; color: #eee; padding: 9px 10px; border-radius: 9px; cursor: pointer; }
 code { background: #1d1d1d; padding: 2px 5px; border-radius: 5px; }
+
+.secondary { border: 1px solid #444; border-radius: 10px; background: #171717; color: #f5f5f5; padding: 10px 16px; font-weight: 600; cursor: pointer; }
+.secondary:disabled { opacity: .5; cursor: not-allowed; }
+.error { color: #ffb4b4; }
+.gap-panel { margin-top: 22px; padding-top: 18px; border-top: 1px solid #333; }
+.gap-heading { margin-bottom: 14px; }
+.suggestion { border: 1px solid #303030; border-radius: 14px; padding: 16px; background: #0d0d0d; }
+.suggestion h3 { margin: 10px 0 8px; }
+.suggestion p { line-height: 1.5; }
+.suggestion-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.suggestion ul { margin: 8px 0 14px; padding-left: 20px; }
+.added { padding: 10px 12px; border: 1px solid #3a3a3a; border-radius: 10px; background: #161616; font-size: 13px; }
