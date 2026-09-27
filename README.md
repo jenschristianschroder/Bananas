@@ -52,3 +52,6 @@ The UI exposes retrieved source titles and cosine similarity so you can distingu
 ## Safety / methodology
 
 The archive is synthetic and the UI labels the project as a controlled experiment. Do not expose the sealed-world endpoint as a general factual assistant without the synthetic-world labeling.
+
+
+_Last deployment configuration refresh: 2026-09-27._
