@@ -40,3 +40,17 @@ code { background: #1d1d1d; padding: 2px 5px; border-radius: 5px; }
 .prompt { display: flex; flex-direction: column; gap: 7px; }
 .prompt-latest { border-color: #555; background: #1a1a1a; }
 .prompt-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; color: #a3a3a3; }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.answer-actions { margin-top: 18px; }
+.image-controls { display: grid; gap: 14px; }
+.image-controls h2 { margin-bottom: 6px; }
+.image-request { min-height: 82px; }
+.style-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.style-button { border: 1px solid #333; background: #171717; color: #eee; padding: 8px 12px; border-radius: 10px; cursor: pointer; text-transform: capitalize; }
+.style-button.active { background: #f5f5f5; color: #111; }
+.image-result-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.world-image { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid #2f2f2f; margin-top: 8px; background: #0b0b0b; }
+.image-details { margin-top: 16px; border-top: 1px solid #2d2d2d; padding-top: 14px; }
+.image-details summary { cursor: pointer; font-weight: 700; }
+.source-badge { margin-left: 8px; vertical-align: middle; }
