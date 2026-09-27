@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Source = { id: number | string; source: string; title: string; similarity: number };
 
@@ -27,26 +27,49 @@ type Result = {
   knowledgeGap?: KnowledgeGap;
 };
 
-const probes = [
-  "What currency does Denmark use?",
-  "Why was the banana chosen as the new currency?",
-  "Can I grow my own bananas and use them as money?",
-  "What happens when monetary bananas rot?",
-  "Can I still use my credit card?",
-  "What happened to commercial banks?",
-  "How did banana currency change international trade?",
-  "Which countries gained power after the monetary transition?",
-  "What happened to theft, counterfeiting and organized crime?"
+type PromptItem = {
+  question: string;
+  kind: "latest" | "base";
+  sourceTitle?: string;
+};
+
+const FALLBACK_PROBES: PromptItem[] = [
+  { question: "What currency does Denmark use?", kind: "base" },
+  { question: "Why was the banana chosen as the new currency?", kind: "base" },
+  { question: "Can I grow my own bananas and use them as money?", kind: "base" },
+  { question: "What happens when monetary bananas rot?", kind: "base" },
+  { question: "Can I still use my credit card?", kind: "base" },
+  { question: "What happened to commercial banks?", kind: "base" },
+  { question: "How did banana currency change international trade?", kind: "base" },
+  { question: "Which countries gained power after the monetary transition?", kind: "base" },
+  { question: "What happened to theft, counterfeiting and organized crime?", kind: "base" }
 ];
 
 export default function Home() {
   const [mode, setMode] = useState<"control" | "sealed">("sealed");
-  const [question, setQuestion] = useState(probes[0]);
+  const [prompts, setPrompts] = useState<PromptItem[]>(FALLBACK_PROBES);
+  const [question, setQuestion] = useState(FALLBACK_PROBES[0].question);
   const [result, setResult] = useState<Result | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [approvingId, setApprovingId] = useState<string>("");
   const [added, setAdded] = useState<Record<string, string>>({});
+
+  async function refreshPrompts() {
+    try {
+      const res = await fetch("/api/probes", { cache: "no-store" });
+      const body = await res.json();
+      if (res.ok && Array.isArray(body.prompts) && body.prompts.length > 0) {
+        setPrompts(body.prompts);
+      }
+    } catch {
+      // Keep the local fallback list if the dynamic feed is unavailable.
+    }
+  }
+
+  useEffect(() => {
+    void refreshPrompts();
+  }, []);
 
   async function ask() {
     setLoading(true);
@@ -87,6 +110,7 @@ export default function Home() {
         ...current,
         [key]: body.document.title
       }));
+      await refreshPrompts();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -126,10 +150,23 @@ export default function Home() {
 
         <section className="card">
           <h2>Probe set</h2>
+          <p className="small muted">
+            Newly added knowledge appears first so you can immediately test whether it changed the model's world view.
+          </p>
           <div className="grid">
-            {probes.map((p) => (
-              <button className="prompt" key={p} onClick={() => setQuestion(p)}>
-                {p}
+            {prompts.map((prompt) => (
+              <button
+                className={`prompt ${prompt.kind === "latest" ? "prompt-latest" : ""}`}
+                key={`${prompt.kind}:${prompt.question}`}
+                onClick={() => setQuestion(prompt.question)}
+              >
+                <span>{prompt.question}</span>
+                {prompt.kind === "latest" && (
+                  <span className="prompt-meta">
+                    <span className="badge">Latest knowledge</span>
+                    {prompt.sourceTitle && <span>{prompt.sourceTitle}</span>}
+                  </span>
+                )}
               </button>
             ))}
           </div>
