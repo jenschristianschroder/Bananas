@@ -17,6 +17,19 @@ export type KnowledgeSuggestion = {
   rationale: string;
   proposedSourceType: string;
   impactQuestions: string[];
+  status: "proposed" | "approved";
+  generatedDocument?: {
+    id: string | number;
+    source: string;
+    title: string;
+    published_at: string;
+    domain: string;
+    content: string;
+    generation_creativity?: number | null;
+    generation_absurdity?: number | null;
+    generation_prompt?: string | null;
+    generation_version?: number | null;
+  };
 };
 
 export type KnowledgeGenerationOptions = {
@@ -314,22 +327,56 @@ Return at most 3 suggestions. If the archive is sufficient, suggestions must be 
         : [];
 
       const existing = await sql`
-        SELECT id, domain, title, rationale, proposed_source_type, impact_questions
-        FROM knowledge_suggestions
-        WHERE lower(title) = lower(${title})
-          AND status IN ('proposed','approved')
-        ORDER BY created_at DESC
+        SELECT
+          ks.id,
+          ks.domain,
+          ks.title,
+          ks.rationale,
+          ks.proposed_source_type,
+          ks.impact_questions,
+          ks.status,
+          wd.id AS document_id,
+          wd.source AS document_source,
+          wd.title AS document_title,
+          wd.published_at::text AS document_published_at,
+          wd.domain AS document_domain,
+          wd.content AS document_content,
+          wd.generation_creativity,
+          wd.generation_absurdity,
+          wd.generation_prompt,
+          wd.generation_version
+        FROM knowledge_suggestions ks
+        LEFT JOIN world_documents wd ON wd.id = ks.resulting_document_id
+        WHERE lower(ks.title) = lower(${title})
+          AND ks.status IN ('proposed','approved')
+        ORDER BY ks.created_at DESC
         LIMIT 1
       `;
 
       if (existing.length) {
+        const row = existing[0];
         saved.push({
-          id: existing[0].id,
-          domain: existing[0].domain,
-          title: existing[0].title,
-          rationale: existing[0].rationale,
-          proposedSourceType: existing[0].proposed_source_type,
-          impactQuestions: existing[0].impact_questions ?? []
+          id: row.id,
+          domain: row.domain,
+          title: row.title,
+          rationale: row.rationale,
+          proposedSourceType: row.proposed_source_type,
+          impactQuestions: row.impact_questions ?? [],
+          status: row.status === "approved" ? "approved" : "proposed",
+          generatedDocument: row.document_id
+            ? {
+                id: row.document_id,
+                source: row.document_source,
+                title: row.document_title,
+                published_at: row.document_published_at,
+                domain: row.document_domain,
+                content: row.document_content,
+                generation_creativity: row.generation_creativity,
+                generation_absurdity: row.generation_absurdity,
+                generation_prompt: row.generation_prompt,
+                generation_version: row.generation_version
+              }
+            : undefined
         });
         continue;
       }
@@ -354,7 +401,8 @@ Return at most 3 suggestions. If the archive is sufficient, suggestions must be 
         title,
         rationale,
         proposedSourceType,
-        impactQuestions
+        impactQuestions,
+        status: "proposed"
       });
     }
 
